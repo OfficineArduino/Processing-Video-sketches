@@ -4,6 +4,9 @@
  * @author Alexandre Quessy <alexandre@quessy.net>
  * @license GNU Public License version 2
  * @url http://www.toonloop.com
+ *
+ * Adapted for the Arduino Workshop by
+ * Federico Vanzati - f.vanzati@arduino.cc / Officine Arduino
  * 
  * In the left window, you can see what is seen by the live camera.
  * In the right window, it is the result of the stop motion loop.
@@ -73,10 +76,18 @@ void setup()
   size(LOOP_WIDTH, LOOP_HEIGHT+FOOTER); 
   frameRate(FRAME_RATE);  // screen frame rate
 
-  cam = new GSCapture(this, LOOP_WIDTH, LOOP_HEIGHT);
-  cam.start();
   println("Available cameras :");
-  print(GSCapture.list());
+  // String array that stores the list of connected cameras
+  String[] cameras = GSCapture.list();
+  // print on the system monitor the available cameras
+  for (int i = 0; i < cameras.length; i++) {
+    println(cameras[i]);
+  }
+  println("-----------------");
+
+  // initialize the cam object, choosing the frame size and which camera use
+  cam = new GSCapture(this, LOOP_WIDTH, LOOP_HEIGHT, cameras[1]);
+  cam.start();
 
   for (int i = 0; i < sequences.length; i++) {
     sequences[i] = new ToonSequence();
@@ -87,29 +98,38 @@ void setup()
   println(")c( Alexandre Quessy 2008");
   println("http://alexandre.quessy.net");
 
+  // Find the Arduino boards connected to the computer 
+  println("Available arduino boards:");
   println(Arduino.list());
+  // Chose the COM port where the Arduino is attached
   arduino = new Arduino(this, Arduino.list()[2], 57600);
 
+  // initialize some arduino pins
   arduino.pinMode(3, Arduino.INPUT);
   arduino.pinMode(5, Arduino.INPUT);
 }
 
 void draw() 
 {
+  // read Arduino buttons pins
   int acquireBtn = arduino.digitalRead(3);
   int deleteBtn = arduino.digitalRead(5);
-
+  
+  // Read the first button -> Acquire Frame
+  // each click increment the counter
   if (acquireBtn == Arduino.HIGH && previousAcq == Arduino.LOW) {
     if (is_auto_recording == 0)
       sequences[currentSeq].addFrame();
   } 
   previousAcq = acquireBtn;
-
+ 
+  // Read the second button -> Delete Frame
+  // each click increment the counter
   if (deleteBtn == Arduino.HIGH && previousDel == Arduino.LOW)
     sequences[currentSeq].deleteFrame();
   previousDel = deleteBtn;
 
-  background(0);
+  background(0);  // black background
   if (cam.available() == true) 
     cam.read();
 
@@ -121,7 +141,8 @@ void draw()
     fill(255, 0, 0, 255);
     String warningText = "AUTO RECORDING";
     text(warningText, (int)(LOOP_WIDTH/(4*WINDOW_SIZE_RATIO)), (int)(LOOP_HEIGHT*1.7*WINDOW_SIZE_RATIO));
-  } 
+  }
+  // Tooloop feature, not required for our purpose
   //  else {
   //    fill(255, 255, 255, 255);
   //    if (isFlashing == 1) 
@@ -140,13 +161,13 @@ void draw()
   noTint();
   if (sequences[currentSeq].captureFrameNum > 0) 
   { 
-    image(
+    //    image(
     //    sequences[currentSeq].images[sequences[currentSeq].playFrameNum], 
     //    (int)(LOOP_WIDTH*WINDOW_SIZE_RATIO), (int)((LOOP_HEIGHT/2)*WINDOW_SIZE_RATIO), 
     //    (int)(LOOP_WIDTH*WINDOW_SIZE_RATIO), (int)(LOOP_HEIGHT*WINDOW_SIZE_RATIO));
     //    sequences[currentSeq].loopFrame();
-
-    sequences[currentSeq].images[sequences[currentSeq].playFrameNum], 0, 0, 640, 480);
+    //    );
+    image(sequences[currentSeq].images[sequences[currentSeq].playFrameNum], 0, 0, 640, 480);
     sequences[currentSeq].loopFrame();
   }
 
@@ -217,7 +238,7 @@ void keyPressed()
   case 'r': // RESET
     sequences[currentSeq].resetMovie();
     break;
-  case 's':
+  case 's': // SAVE
     if (is_auto_recording == 0) {
       saveMovie();
     }
